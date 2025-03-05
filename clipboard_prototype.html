@@ -1,0 +1,1674 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>macOS剪贴板管理应用原型</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+        
+        :root {
+            --primary-color: #0071e3;
+            --primary-hover: #0077ed;
+            --secondary-color: #f5f5f7;
+            --text-color: #1d1d1f;
+            --text-secondary: #86868b;
+            --border-color: #d2d2d7;
+            --card-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            --hover-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            --transition-speed: 0.25s;
+        }
+        
+        body {
+            background-color: #fbfbfd;
+            padding: 20px;
+            color: var(--text-color);
+            line-height: 1.5;
+        }
+        
+        h1, h2, h3 {
+            margin-bottom: 20px;
+            color: var(--text-color);
+            font-weight: 600;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #0071e3, #42a1ec);
+            color: white;
+            border-radius: 16px;
+            box-shadow: var(--card-shadow);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+            opacity: 0.6;
+            z-index: 0;
+        }
+        
+        .header h1 {
+            color: white;
+            font-size: 3em;
+            margin-bottom: 16px;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header p {
+            font-size: 1.3em;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .prototype-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(550px, 1fr));
+            gap: 40px;
+            margin-bottom: 70px;
+        }
+        
+        .prototype {
+            background-color: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: var(--card-shadow);
+            transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+        }
+        
+        .prototype:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--hover-shadow);
+        }
+        
+        .prototype-header {
+            background-color: #f5f5f7;
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+        }
+        
+        .prototype-header i {
+            color: var(--primary-color);
+            font-size: 1.2em;
+        }
+        
+        .prototype-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-left: 12px;
+            color: var(--text-color);
+        }
+        
+        .prototype-content {
+            padding: 20px;
+            min-height: 350px;
+        }
+        
+        /* macOS 风格元素 */
+        .macos-window {
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 5px 30px rgba(0, 0, 0, 0.12);
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        
+        .macos-titlebar {
+            background: linear-gradient(to bottom, #f9f9f9, #e5e5e5);
+            height: 28px;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            border-bottom: 1px solid #d1d1d1;
+        }
+        
+        .window-controls {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .control {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            position: relative;
+        }
+        
+        .control::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 50%;
+            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+        }
+        
+        .close {
+            background-color: #ff5f57;
+        }
+        
+        .minimize {
+            background-color: #febc2e;
+        }
+        
+        .maximize {
+            background-color: #28c840;
+        }
+        
+        .window-title {
+            flex-grow: 1;
+            text-align: center;
+            font-size: 13px;
+            color: #555;
+            margin-left: -36px; /* 补偿窗口控制按钮的宽度 */
+            font-weight: 500;
+        }
+        
+        .window-content {
+            padding: 0;
+            height: calc(100% - 28px);
+            display: flex;
+        }
+        
+        /* 剪贴板应用特定样式 */
+        .sidebar {
+            width: 220px;
+            background-color: #f5f5f7;
+            border-right: 1px solid var(--border-color);
+            padding: 15px 0;
+            height: 100%;
+            overflow-y: auto;
+        }
+        
+        .main-content {
+            margin-left: 0;
+            padding: 30px;
+            height: 100%;
+            overflow-y: auto;
+            flex: 1;
+            background-color: #f9f9fb;
+        }
+        
+        .sidebar-item {
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            color: var(--text-color);
+            text-decoration: none;
+            border-left: 3px solid transparent;
+            margin: 2px 0;
+            border-radius: 0 6px 6px 0;
+            transition: all var(--transition-speed) ease;
+        }
+        
+        .sidebar-item.active {
+            background-color: rgba(0, 113, 227, 0.1);
+            border-left-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+        
+        .sidebar-item:hover:not(.active) {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        .sidebar-item i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .sidebar-section {
+            margin-top: 25px;
+            padding: 0 15px 10px;
+        }
+        
+        .sidebar-section-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }
+        
+        .clip-item {
+            padding: 14px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background-color var(--transition-speed);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+        }
+        
+        .clip-item:hover {
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+        
+        .clip-item.active {
+            background-color: rgba(0, 113, 227, 0.05);
+        }
+        
+        .clip-content {
+            flex-grow: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding-right: 15px;
+        }
+        
+        .clip-actions {
+            display: flex;
+            gap: 12px;
+            opacity: 0;
+            transition: opacity var(--transition-speed);
+        }
+        
+        .clip-item:hover .clip-actions {
+            opacity: 1;
+        }
+        
+        .clip-actions i {
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: color var(--transition-speed);
+            font-size: 15px;
+        }
+        
+        .clip-actions i:hover {
+            color: var(--primary-color);
+        }
+        
+        /* 横向滚动剪贴板列表样式 */
+        .horizontal-clip-container {
+            width: 100%;
+            overflow-x: auto;
+            padding: 10px 0;
+            position: relative;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+        }
+        
+        .horizontal-clip-container::-webkit-scrollbar {
+            height: 6px;
+        }
+        
+        .horizontal-clip-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .horizontal-clip-container::-webkit-scrollbar-thumb {
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+        }
+        
+        .horizontal-clip-list {
+            display: flex;
+            gap: 16px;
+            padding: 5px 2px;
+            min-width: min-content;
+        }
+        
+        .horizontal-clip-item {
+            flex: 0 0 220px;
+            height: 160px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            transition: all var(--transition-speed);
+            cursor: pointer;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+        }
+        
+        .horizontal-clip-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+        }
+        
+        .horizontal-clip-icon {
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+            font-size: 18px;
+        }
+        
+        .horizontal-clip-content {
+            flex-grow: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--text-color);
+        }
+        
+        .horizontal-clip-time {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 12px;
+        }
+        
+        .horizontal-clip-actions {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            display: flex;
+            gap: 10px;
+            opacity: 0;
+            transition: opacity var(--transition-speed);
+        }
+        
+        .horizontal-clip-item:hover .horizontal-clip-actions {
+            opacity: 1;
+        }
+        
+        .horizontal-clip-actions i {
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: color var(--transition-speed);
+        }
+        
+        /* 网格布局剪贴板列表样式 - 参考Paste App */
+        .grid-clip-container {
+            width: 100%;
+            padding: 10px 0;
+            position: relative;
+        }
+        
+        .grid-clip-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+            padding: 5px 2px;
+        }
+        
+        .grid-clip-item {
+            height: 180px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            transition: all var(--transition-speed);
+            cursor: pointer;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+            overflow: hidden;
+        }
+        
+        .grid-clip-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+        }
+        
+        .grid-clip-icon {
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .grid-clip-content {
+            flex-grow: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 5;
+            -webkit-box-orient: vertical;
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--text-color);
+        }
+        
+        .grid-clip-time {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 12px;
+        }
+        
+        .grid-clip-actions {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            display: flex;
+            gap: 10px;
+            opacity: 0;
+            transition: opacity var(--transition-speed);
+        }
+        
+        .grid-clip-item:hover .grid-clip-actions {
+            opacity: 1;
+        }
+        
+        .grid-clip-actions i {
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: color var(--transition-speed);
+        }
+        
+        .grid-clip-actions i:hover {
+            color: var(--primary-color);
+        }
+        
+        .grid-clip-type-indicator {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+        
+        .type-text {
+            background-color: #0071e3;
+        }
+        
+        .type-image {
+            background-color: #5ac8fa;
+        }
+        
+        .type-link {
+            background-color: #ff9500;
+        }
+        
+        .type-code {
+            background-color: #af52de;
+        }
+        
+        .type-file {
+            background-color: #34c759;
+        }
+        
+        .horizontal-clip-actions i:hover {
+            color: var(--primary-color);
+        }
+        
+        .search-bar {
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            background-color: white;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border-color);
+            transition: all var(--transition-speed);
+        }
+        
+        .search-bar:focus-within {
+            box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.2);
+            border-color: var(--primary-color);
+        }
+        
+        .search-bar i {
+            color: var(--text-secondary);
+            margin-right: 10px;
+        }
+        
+        .search-input {
+            border: none;
+            outline: none;
+            flex-grow: 1;
+            font-size: 14px;
+            color: var(--text-color);
+        }
+        
+        .button {
+            padding: 10px 18px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color var(--transition-speed);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .button:hover {
+            background-color: var(--primary-hover);
+        }
+        
+        .button.secondary {
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+        }
+        
+        .button.secondary:hover {
+            background-color: #e5e5e7;
+        }
+        
+        .form-group {
+            margin-bottom: 18px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-color);
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all var(--transition-speed);
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.2);
+            outline: none;
+        }
+        
+        .modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal {
+            background-color: white;
+            border-radius: 12px;
+            width: 420px;
+            padding: 24px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            animation: modalFadeIn 0.3s ease;
+        }
+        
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: color var(--transition-speed);
+        }
+        
+        .modal-close:hover {
+            color: var(--text-color);
+        }
+        
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+        }
+        
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        input:checked + .slider {
+            background-color: var(--primary-color);
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+        
+        .setting-label {
+            font-weight: 500;
+            color: var(--text-color);
+        }
+        
+        .setting-description {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        
+        .hotkey-badge {
+            background-color: var(--secondary-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 3px 8px;
+            font-size: 12px;
+            font-family: monospace;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .category-list {
+            list-style: none;
+        }
+        
+        .category-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .category-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 10px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        
+        .category-name {
+            display: flex;
+            align-items: center;
+        }
+        
+        .notification {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 18px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            animation: fadeIn 0.3s, fadeOut 0.3s 2.7s;
+            opacity: 0.9;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 0.9; transform: translateY(0); }
+        }
+        
+        @keyframes fadeOut {
+            from { opacity: 0.9; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(-20px); }
+        }
+        
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 16px;
+            background-color: var(--secondary-color);
+            border-top: 1px solid var(--border-color);
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .menu-bar {
+            background: linear-gradient(to bottom, #f9f9f9, #e5e5e5);
+            padding: 6px 12px;
+            border-bottom: 1px solid #d1d1d1;
+            display: flex;
+            gap: 16px;
+            font-size: 13px;
+        }
+        
+        .menu-item {
+            cursor: pointer;
+            color: var(--text-color);
+            transition: color var(--transition-speed);
+        }
+        
+        .menu-item:hover {
+            color: var(--primary-color);
+        }
+        
+        .clip-preview {
+            padding: 18px;
+            background-color: white;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            margin-top: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        
+        .clip-preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .clip-preview-title {
+            font-weight: 600;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+        }
+        
+        .clip-preview-content {
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 14px;
+            background-color: var(--secondary-color);
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .clip-type-icon {
+            margin-right: 10px;
+            color: var(--text-secondary);
+        }
+        
+        .clip-timestamp {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-left: 12px;
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            padding: 10px 18px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all var(--transition-speed);
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        
+        .tab.active {
+            border-bottom-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+        
+        .tab:hover:not(.active) {
+            background-color: rgba(0, 0, 0, 0.02);
+            color: var(--text-color);
+        }
+        
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: white;
+            min-width: 180px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            z-index: 1;
+            right: 0;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+        
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+        
+        .dropdown-item {
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: background-color var(--transition-speed);
+        }
+        
+        .dropdown-item:hover {
+            background-color: var(--secondary-color);
+        }
+        
+        .shortcut-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        
+        .shortcut-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            background-color: var(--secondary-color);
+            border-radius: 8px;
+            transition: transform var(--transition-speed), box-shadow var(--transition-speed);
+        }
+        
+        .shortcut-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+        }
+        
+        .shortcut-keys {
+            display: flex;
+            gap: 6px;
+        }
+        
+        .key {
+            background-color: white;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 3px 8px;
+            font-size: 12px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .color-picker {
+            display: flex;
+            gap: 12px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .color-option {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform var(--transition-speed), border-color var(--transition-speed);
+        }
+        
+        .color-option.selected {
+            border-color: var(--primary-color);
+            transform: scale(1.1);
+        }
+        
+        .history-date {
+            padding: 8px 12px;
+            background-color: var(--secondary-color);
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin: 16px 0 8px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        
+        .pin-icon {
+            color: #febc2e;
+        }
+        
+        .image-preview {
+            max-width: 100%;
+            max-height: 180px;
+            object-fit: contain;
+            margin-top: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        
+        .category-tag {
+            display: inline-block;
+            padding: 4px 10px;
+            background-color: var(--secondary-color);
+            border-radius: 6px;
+            font-size: 12px;
+            margin-right: 6px;
+            margin-bottom: 6px;
+            transition: all var(--transition-speed);
+            border: 1px solid var(--border-color);
+            display: inline-flex;
+            align-items: center;
+        }
+        
+        .category-tag i {
+            margin-left: 6px;
+            font-size: 10px;
+            opacity: 0.7;
+        }
+        
+        .category-tag:hover {
+            background-color: #e5e5e7;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 0;
+            color: var(--text-secondary);
+        }
+        
+        .empty-state i {
+            font-size: 54px;
+            margin-bottom: 24px;
+            color: #d2d2d7;
+        }
+        
+        .empty-state p {
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        
+        /* 优化长条窗口样式 */
+        .strip-window {
+            background-color: #ffffff;
+            border-radius: 10px 10px 0 0;
+            box-shadow: 0 -5px 30px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            width: 100%;
+            height: 350px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        /* 优化水平标签栏样式 */
+        .horizontal-tabs {
+            display: flex;
+            background-color: #f5f5f7;
+            border-bottom: 1px solid var(--border-color);
+            padding: 0;
+            overflow-x: auto;
+            white-space: nowrap;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+        }
+        
+        .horizontal-tabs::-webkit-scrollbar {
+            height: 4px;
+        }
+        
+        .horizontal-tabs::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .horizontal-tabs::-webkit-scrollbar-thumb {
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+        
+        .horizontal-tab-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            color: var(--text-color);
+            text-decoration: none;
+            border-bottom: 3px solid transparent;
+            transition: all var(--transition-speed) ease;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        
+        .horizontal-tab-item.active {
+            background-color: rgba(0, 113, 227, 0.1);
+            border-bottom-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+        
+        .horizontal-tab-item:hover:not(.active) {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        .horizontal-tab-item i {
+            margin-right: 8px;
+            width: 20px;
+            text-align: center;
+        }
+        
+        /* 优化网格布局以适应长条窗口 */
+        .strip-window .grid-clip-list {
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+        }
+        
+        .strip-window .grid-clip-item {
+            height: 160px;
+        }
+        
+        /* 添加拖动条样式 */
+        .drag-handle {
+            width: 40px;
+            height: 5px;
+            background-color: var(--border-color);
+            border-radius: 3px;
+            margin: 8px auto;
+            cursor: ns-resize;
+        }
+        
+        .strip-content {
+            padding: 15px;
+            height: calc(100% - 20px);
+            overflow-y: auto;
+        }
+        
+        .strip-main-content {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>macOS剪贴板管理应用原型</h1>
+            <p>一个功能完善、界面精美的剪贴板管理工具</p>
+        </div>
+        
+        <div class="prototype-grid">
+            <!-- 主界面原型 - 修改为长条窗口 -->
+            <div class="prototype">
+                <div class="prototype-header">
+                    <i class="fas fa-clipboard"></i>
+                    <div class="prototype-title">主界面 (长条窗口)</div>
+                </div>
+                <div class="prototype-content">
+                    <div class="strip-window">
+                        <div class="drag-handle"></div>
+                        <div class="strip-content">
+                            <div class="strip-main-content">
+                                <div class="search-bar">
+                                    <i class="fas fa-search"></i>
+                                    <input type="text" class="search-input" placeholder="搜索剪贴板内容...">
+                                </div>
+                                
+                                <div style="margin-bottom: 24px;">
+                                    <h3 style="margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between;">
+                                        最近复制的内容
+                                        <span style="font-size: 13px; color: var(--text-secondary); font-weight: normal;">今天 · 8项</span>
+                                    </h3>
+                                    <div class="grid-clip-container">
+                                        <div class="grid-clip-list">
+                                            <!-- 剪贴板条目内容保持不变 -->
+                                            <div class="grid-clip-item">
+                                                <div class="grid-clip-icon">
+                                                    <i class="fas fa-font"></i>
+                                                </div>
+                                                <div class="grid-clip-content">
+                                                    这是一段示例文本内容，展示了剪贴板中的文本条目。
+                                                </div>
+                                                <div class="grid-clip-time">10:45</div>
+                                                <div class="grid-clip-actions">
+                                                    <i class="fas fa-copy" title="复制"></i>
+                                                    <i class="fas fa-thumbtack" title="固定"></i>
+                                                </div>
+                                                <div class="grid-clip-type-indicator type-text"></div>
+                                            </div>
+                                            <!-- 剪贴板条目 2 -->
+                                            <div class="grid-clip-item">
+                                                <div class="grid-clip-icon">
+                                                    <i class="fas fa-image"></i>
+                                                </div>
+                                                <div class="grid-clip-content">
+                                                    图片.png
+                                                </div>
+                                                <div class="grid-clip-time">10:30</div>
+                                                <div class="grid-clip-actions">
+                                                    <i class="fas fa-copy" title="复制"></i>
+                                                    <i class="fas fa-thumbtack" title="固定"></i>
+                                                </div>
+                                                <div class="grid-clip-type-indicator type-image"></div>
+                                            </div>
+                                            <!-- 剪贴板条目 3 -->
+                                            <div class="grid-clip-item">
+                                                <div class="grid-clip-icon">
+                                                    <i class="fas fa-link"></i>
+                                                </div>
+                                                <div class="grid-clip-content">
+                                                    https://www.example.com
+                                                </div>
+                                                <div class="grid-clip-time">10:15</div>
+                                                <div class="grid-clip-actions">
+                                                    <i class="fas fa-copy" title="复制"></i>
+                                                    <i class="fas fa-thumbtack" title="固定"></i>
+                                                </div>
+                                                <div class="grid-clip-type-indicator type-link"></div>
+                                            </div>
+                                            <!-- 剪贴板条目 4 -->
+                                            <div class="grid-clip-item">
+                                                <div class="grid-clip-icon">
+                                                    <i class="fas fa-code"></i>
+                                                </div>
+                                                <div class="grid-clip-content">
+                                                    console.log("Hello World");
+                                                </div>
+                                                <div class="grid-clip-time">10:00</div>
+                                                <div class="grid-clip-actions">
+                                                    <i class="fas fa-copy" title="复制"></i>
+                                                    <i class="fas fa-thumbtack" title="固定"></i>
+                                                </div>
+                                                <div class="grid-clip-type-indicator type-code"></div>
+                                            </div>
+                                            <!-- 剪贴板条目 5 -->
+                                            <div class="grid-clip-item">
+                                                <div class="grid-clip-icon">
+                                                    <i class="fas fa-font"></i>
+                                                </div>
+                                                <div class="grid-clip-content">
+                                                    会议记录：讨论了新项目的进度和下一步计划。
+                                                </div>
+                                                <div class="grid-clip-time">昨天</div>
+                                                <div class="grid-clip-actions">
+                                                    <i class="fas fa-copy" title="复制"></i>
+                                                    <i class="fas fa-thumbtack" title="固定"></i>
+                                                </div>
+                                                <div class="grid-clip-type-indicator type-text"></div>
+                                            </div>
+                                            <!-- 剪贴板条目 6 -->
+                                            <div class="grid-clip-item">
+                                                <div class="grid-clip-icon">
+                                                    <i class="fas fa-file"></i>
+                                                </div>
+                                                <div class="grid-clip-content">
+                                                    文档.pdf
+                                                </div>
+                                                <div class="grid-clip-time">昨天</div>
+                                                <div class="grid-clip-actions">
+                                                    <i class="fas fa-copy" title="复制"></i>
+                                                    <i class="fas fa-thumbtack" title="固定"></i>
+                                                </div>
+                                                <div class="grid-clip-type-indicator type-file"></div>
+                                            </div>
+                                            <!-- 剪贴板条目 7 -->
+                                            <div class="grid-clip-item">
+                                                <div class="grid-clip-icon">
+                                                    <i class="fas fa-font"></i>
+                                                </div>
+                                                <div class="grid-clip-content">
+                                                    下周会议安排：周一 10:00 产品讨论，周三 14:00 进度汇报
+                                                </div>
+                                                <div class="grid-clip-time">3天前</div>
+                                                <div class="grid-clip-actions">
+                                                    <i class="fas fa-copy" title="复制"></i>
+                                                    <i class="fas fa-thumbtack" title="固定"></i>
+                                                </div>
+                                                <div class="grid-clip-type-indicator type-text"></div>
+                                            </div>
+                                            <!-- 剪贴板条目 8 -->
+                                            <div class="grid-clip-item">
+                                                <div class="grid-clip-icon">
+                                                    <i class="fas fa-link"></i>
+                                                </div>
+                                                <div class="grid-clip-content">
+                                                    https://zoom.us/meeting/join/123456789
+                                                </div>
+                                                <div class="grid-clip-time">上周</div>
+                                                <div class="grid-clip-actions">
+                                                    <i class="fas fa-copy" title="复制"></i>
+                                                    <i class="fas fa-thumbtack" title="固定"></i>
+                                                </div>
+                                                <div class="grid-clip-type-indicator type-link"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="clip-preview">
+                                    <div class="clip-preview-header">
+                                        <div class="clip-preview-title">
+                                            <i class="fas fa-font clip-type-icon"></i> 文本内容
+                                            <span class="clip-timestamp">今天 10:45</span>
+                                        </div>
+                                        <div class="clip-actions">
+                                            <i class="fas fa-thumbtack" title="固定"></i>
+                                            <i class="fas fa-tag" title="添加标签"></i>
+                                            <i class="fas fa-copy" title="复制"></i>
+                                            <i class="fas fa-trash" title="删除"></i>
+                                        </div>
+                                    </div>
+                                    <div class="clip-preview-content">
+                                        这是一段示例文本内容，展示了剪贴板中的文本条目。这里可以显示完整的文本内容，无论长度如何。
+                                        
+                                        用户可以在这里查看、编辑和复制文本。
+                                    </div>
+                                </div>
+                                
+                                <div class="tabs">
+                                    <div class="tab active">预览</div>
+                                    <div class="tab">信息</div>
+                                    <div class="tab">历史</div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>添加标签</label>
+                                    <div style="display: flex; gap: 10px;">
+                                        <input type="text" class="form-control" placeholder="输入标签名称..." style="flex-grow: 1;">
+                                        <button class="button">添加</button>
+                                    </div>
+                                </div>
+                                
+                                <div style="margin-top: 16px;">
+                                    <div style="font-weight: 500; margin-bottom: 12px;">已添加标签</div>
+                                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                        <span class="category-tag">工作 <i class="fas fa-times"></i></span>
+                                        <span class="category-tag">重要 <i class="fas fa-times"></i></span>
+                                        <span class="category-tag">会议 <i class="fas fa-times"></i></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="status-bar">
+                            <div class="status-item">
+                                <i class="fas fa-database"></i> 存储: 1.2GB/5GB
+                            </div>
+                            <div class="status-item">
+                                <i class="fas fa-sync"></i> 上次同步: 10:45
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 设置界面 -->
+            <div class="prototype">
+                <div class="prototype-header">
+                    <i class="fas fa-cog"></i>
+                    <div class="prototype-title">设置界面</div>
+                </div>
+                <div class="prototype-content">
+                    <div class="macos-window">
+                        <div class="macos-titlebar">
+                            <div class="window-controls">
+                                <div class="control close"></div>
+                                <div class="control minimize"></div>
+                                <div class="control maximize"></div>
+                            </div>
+                            <div class="window-title">ClipMaster Pro - 设置</div>
+                        </div>
+                        <div class="window-content">
+                            <div class="sidebar">
+                                <div class="sidebar-item active">
+                                    <i class="fas fa-sliders-h"></i> 常规
+                                </div>
+                                <div class="sidebar-item">
+                                    <i class="fas fa-history"></i> 历史记录
+                                </div>
+                                <div class="sidebar-item">
+                                    <i class="fas fa-keyboard"></i> 快捷键
+                                </div>
+                                <div class="sidebar-item">
+                                    <i class="fas fa-tag"></i> 标签管理
+                                </div>
+                                <div class="sidebar-item">
+                                    <i class="fas fa-cloud"></i> 同步
+                                </div>
+                                <div class="sidebar-item">
+                                    <i class="fas fa-shield-alt"></i> 隐私
+                                </div>
+                                <div class="sidebar-item">
+                                    <i class="fas fa-info-circle"></i> 关于
+                                </div>
+                            </div>
+                            <div class="main-content">
+                                <h3>常规设置</h3>
+                                
+                                <div class="setting-item">
+                                    <div>
+                                        <div class="setting-label">开机自动启动</div>
+                                        <div class="setting-description">系统启动时自动运行ClipMaster</div>
+                                    </div>
+                                    <label class="switch">
+                                        <input type="checkbox" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                
+                                <div class="setting-item">
+                                    <div>
+                                        <div class="setting-label">显示菜单栏图标</div>
+                                        <div class="setting-description">在macOS菜单栏显示ClipMaster图标</div>
+                                    </div>
+                                    <label class="switch">
+                                        <input type="checkbox" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                
+                                <div class="setting-item">
+                                    <div>
+                                        <div class="setting-label">保存历史记录</div>
+                                        <div class="setting-description">自动保存复制的内容到历史记录</div>
+                                    </div>
+                                    <label class="switch">
+                                        <input type="checkbox" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                
+                                <div class="setting-item">
+                                    <div>
+                                        <div class="setting-label">历史记录保存时间</div>
+                                        <div class="setting-description">设置剪贴板历史记录的保存时间</div>
+                                    </div>
+                                    <select class="form-control" style="width: 150px;">
+                                        <option>1周</option>
+                                        <option>1个月</option>
+                                        <option selected>3个月</option>
+                                        <option>6个月</option>
+                                        <option>永久</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="setting-item">
+                                    <div>
+                                        <div class="setting-label">最大历史记录数量</div>
+                                        <div class="setting-description">设置最多保存的历史记录数量</div>
+                                    </div>
+                                    <select class="form-control" style="width: 150px;">
+                                        <option>100项</option>
+                                        <option>500项</option>
+                                        <option selected>1000项</option>
+                                        <option>5000项</option>
+                                        <option>无限制</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="setting-item">
+                                    <div>
+                                        <div class="setting-label">主题</div>
+                                        <div class="setting-description">选择应用的显示主题</div>
+                                    </div>
+                                    <select class="form-control" style="width: 150px;">
+                                        <option selected>跟随系统</option>
+                                        <option>浅色</option>
+                                        <option>深色</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 快捷键设置界面 -->
+            <div class="prototype">
+                <div class="prototype-header">
+                    <i class="fas fa-keyboard"></i>
+                    <div class="prototype-title">快捷键设置</div>
+                </div>
+                <div class="prototype-content">
+                    <div class="macos-window">
+                        <div class="macos-titlebar">
+                            <div class="window-controls">
+                                <div class="control close"></div>
+                                <div class="control minimize"></div>
+                                <div class="control maximize"></div>
+                            </div>
+                            <div class="window-title">ClipMaster Pro - 快捷键</div>
+                        </div>
+                        <div class="window-content">
+                            <div class="sidebar">
+                                <div class="sidebar-item">
+                                    <i class="fas fa-sliders-h"></i> 常规
+                                </div>
+                                <div class="sidebar-item">
+                                    <i class="fas fa-history"></i> 历史记录
+                                </div>
+                                <div class="sidebar-item active">
+                                    <i class="fas fa-keyboard"></i> 快捷键
+                                </div>
+                                <div class="sidebar-item">
+                                    <i class="fas fa-tag"></i> 标签管理
+                                </div>
+                                <div class="sidebar-item">
+                                    <i class="fas fa-cloud"></i> 同步
+                                </div>
+                                <div class="sidebar-item">
+                                    <i class="fas fa-shield-alt"></i> 隐私
+                                </div>
+                                <div class="sidebar-item">
+                                    <i class="fas fa-info-circle"></i> 关于
+                                </div>
+                            </div>
+                            <div class="main-content">
+                                <h3>快捷键设置</h3>
+                                <p style="margin-bottom: 20px; color: var(--text-secondary);">自定义键盘快捷键以提高工作效率</p>
+                                
+                                <div class="shortcut-list">
+                                    <div class="shortcut-item">
+                                        <div>打开主界面</div>
+                                        <div class="shortcut-keys">
+                                            <span class="key">⌘</span>
+                                            <span class="key">⇧</span>
+                                            <span class="key">V</span>
+                                        </div>
+                                    </div>
+                                    <div class="shortcut-item">
+                                        <div>显示历史记录</div>
+                                        <div class="shortcut-keys">
+                                            <span class="key">⌘</span>
+                                            <span class="key">⇧</span>
+                                            <span class="key">H</span>
+                                        </div>
+                                    </div>
+                                    <div class="shortcut-item">
+                                        <div>搜索剪贴板</div>
+                                        <div class="shortcut-keys">
+                                            <span class="key">⌘</span>
+                                            <span class="key">⇧</span>
+                                            <span class="key">F</span>
+                                        </div>
+                                    </div>
+                                    <div class="shortcut-item">
+                                        <div>清空历史记录</div>
+                                        <div class="shortcut-keys">
+                                            <span class="key">⌘</span>
+                                            <span class="key">⇧</span>
+                                            <span class="key">⌫</span>
+                                        </div>
+                                    </div>
+                                    <div class="shortcut-item">
+                                        <div>固定选中项</div>
+                                        <div class="shortcut-keys">
+                                            <span class="key">⌘</span>
+                                            <span class="key">P</span>
+                                        </div>
+                                    </div>
+                                    <div class="shortcut-item">
+                                        <div>复制选中项</div>
+                                        <div class="shortcut-keys">
+                                            <span class="key">⌘</span>
+                                            <span class="key">⏎</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div style="margin-top: 30px;">
+                                    <button class="button">重置为默认值</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 通知提示界面 -->
+            <div class="prototype">
+                <div class="prototype-header">
+                    <i class="fas fa-bell"></i>
+                    <div class="prototype-title">通知提示</div>
+                </div>
+                <div class="prototype-content">
+                    <div style="position: relative; height: 100%;">
+                        <div class="notification">
+                            <i class="fas fa-clipboard-check"></i>
+                            <div>内容已复制到剪贴板</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 60px; margin-bottom: 100px;">
+            <h2>功能说明</h2>
+            <div style="max-width: 800px; margin: 0 auto; text-align: left; padding: 30px; background-color: white; border-radius: 16px; box-shadow: var(--card-shadow);">
+                <h3>核心功能</h3>
+                <ul style="margin-left: 20px; margin-bottom: 24px; line-height: 1.8;">
+                    <li><strong>剪贴板历史记录</strong> - 自动保存复制的文本、图片、文件和链接等内容</li>
+                    <li><strong>内容分类</strong> - 按类型和自定义分类组织剪贴板内容</li>
+                    <li><strong>快速搜索</strong> - 通过关键词快速查找历史剪贴板内容</li>
+                    <li><strong>固定重要内容</strong> - 将常用内容固定在顶部方便访问</li>
+                    <li><strong>快捷键支持</strong> - 通过键盘快捷键快速访问和操作</li>
+                    <li><strong>菜单栏快速访问</strong> - 通过macOS菜单栏图标快速访问最近内容</li>
+                    <li><strong>隐私保护</strong> - 自动过滤敏感信息，支持隐私模式</li>
+                    <li><strong>内容预览</strong> - 支持文本、图片、代码等多种格式的预览</li>
+                    <li><strong>自定义标签</strong> - 为剪贴板内容添加自定义标签和分类</li>
+                    <li><strong>数据同步</strong> - 可选择通过iCloud在多设备间同步剪贴板历史</li>
+                </ul>
+                
+                <h3>技术实现</h3>
+                <ul style="margin-left: 20px; line-height: 1.8;">
+                    <li>使用NSUserDefaults或专用配置文件存储用户设置</li>
+                    <li>实现全局快捷键支持，使用Carbon Hot Key API</li>
+                    <li>使用NSStatusItem实现菜单栏快速访问功能</li>
+                    <li>实现AES-256加密算法保护敏感数据</li>
+                    <li>采用响应式设计确保在不同屏幕尺寸下的良好体验</li>
+                    <li>使用SwiftUI动画提供流畅的交互体验</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html>Swift和AppKit/SwiftUI开发原生macOS应用</li>
+                    <li>利用NSPasteboard API监控和管理系统剪贴板</li>
+                    <li>使用NSUserDefaults或专用配置文件存储用户设置</li>
+                    <li>实现全局快捷键支持，使用Carbon Hot Key API</li>
+                    <li>使用NSStatusItem实现菜单栏快速访问功能</li>
+                    <li>实现AES-256加密算法保护敏感数据</li>
+                    <li>采用响应式设计确保在不同屏幕尺寸下的良好体验</li>
+                    <li>使用SwiftUI动画提供流畅的交互体验</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html>Core Data或SQLite进行本地数据存储</li>
+                    <li>实现后台服务确保应用在后台持续监控剪贴板</li>
+                    <li>使用NSUserDefaults或专用配置文件存储用户设置</li>
+                    <li>实现全局快捷键支持，使用Carbon Hot Key API</li>
+                    <li>使用NSStatusItem实现菜单栏快速访问功能</li>
+                    <li>实现AES-256加密算法保护敏感数据</li>
+                    <li>采用响应式设计确保在不同屏幕尺寸下的良好体验</li>
+                    <li>使用SwiftUI动画提供流畅的交互体验</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "source": "/Users/sunhuanyu/code/clip-master/clip-master/ContentView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "正在初始化...",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 20
+        }
+      }
+    ]
+  },
+  "version": 1
+}
