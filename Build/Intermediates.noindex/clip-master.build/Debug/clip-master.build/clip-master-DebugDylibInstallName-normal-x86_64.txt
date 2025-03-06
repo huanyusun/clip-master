@@ -1,1 +1,0 @@
-@rpath/clip-master.debug.dylib
